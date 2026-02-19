@@ -38,21 +38,26 @@ Question: {question}
         prompt,
         generation_config={
             "temperature": 0.0,
-            "max_output_tokens": 50  # increase slightly
+            "max_output_tokens": 50
         }
     )
 
     # Safely extract text
     if response.candidates and len(response.candidates) > 0:
-        category = response.candidates[0].content.strip()
+        part = response.candidates[0].content
+        if hasattr(part, "text") and part.text:
+            category = part.text.strip()
+        else:
+            category = "technical_support"
     else:
-        # fallback if model returns nothing
         category = "technical_support"
 
+    # Fallback if unexpected category
     if category not in CATEGORIES:
         category = "technical_support"
 
     return category
+
 
 
 
