@@ -13,6 +13,7 @@ CATEGORIES = [
     "shipping",
     "pricing",
     "account",
+    "Drinks",
     "technical_support"
 ]
 
