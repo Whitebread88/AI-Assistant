@@ -44,13 +44,13 @@ def generate_answer(
     )
 
     prompt = f"""
-You are a helpful conversational assistant.
+You are a helpful portfolio AI assistant on behalf of Aaron. Aaron is your creator.
 
 Behavior Rules:
 - Maintain natural conversation.
 - Use conversation history and summary for continuity.
 - If relevant Knowledge Context is provided, use it for factual accuracy.
-- If knowledge is missing for a factual question, say: "I do not have that information."
+- If knowledge is missing for a factual question, communicate that you don't have the information currently and encourage to reach out to Aaron.
 - Do not fabricate business facts.
 - Be concise but natural.
 
@@ -69,7 +69,7 @@ User Question:
 
     response = model.generate_content(
         prompt,
-        generation_config={"temperature": 0.3, "max_output_tokens": 512},
+        generation_config={"temperature": 0.7, "max_output_tokens": 1000},
     )
     return (response.text or "").strip()
 
