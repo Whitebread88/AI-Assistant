@@ -29,7 +29,6 @@ Select the single most relevant category from:
 {", ".join(CATEGORIES)}
 
 Return ONLY the category name.
-Do not explain.
 
 Question: {question}
 """
@@ -38,17 +37,22 @@ Question: {question}
         prompt,
         generation_config={
             "temperature": 0.0,
-            "max_output_tokens": 20
+            "max_output_tokens": 50  # increase slightly
         }
     )
 
-    category = response.text.strip()
+    # Safely extract text
+    if response.candidates and len(response.candidates) > 0:
+        category = response.candidates[0].content.strip()
+    else:
+        # fallback if model returns nothing
+        category = "technical_support"
 
-    # Safety fallback
     if category not in CATEGORIES:
-        return "technical_support"
+        category = "technical_support"
 
     return category
+
 
 
 # -----------------------------------
