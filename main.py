@@ -1,6 +1,5 @@
 from fastapi import Header, FastAPI, HTTPException, Request
 import os
-from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from llm import classify_categories, generate_answer, summarize_conversation
 from memory import get_session, save_session, trim_history
