@@ -14,15 +14,11 @@ def get_session(session_id: str):
     if doc.exists:
         data = doc.to_dict()
         history = data.get("history") or data.get("messages") or []
-        return {
-            "history": history,
-            "summary": data.get("summary", ""),
-            "last_category": data.get("last_category", ""),
-        }
-    return {"history": [], "summary": "", "last_category": ""}
+        return {"history": history, "summary": data.get("summary", "")}
+    return {"history": [], "summary": ""}
 
 
-def save_session(session_id: str, history, summary, last_category):
+def save_session(session_id: str, history, summary):
     _db().collection("chats").document(session_id).set({
         "history": history,
         "summary": summary,

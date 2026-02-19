@@ -40,11 +40,10 @@ async def chat(req: ChatRequest):
     session = get_session(req.session_id)
     history = session.get("history", [])
     summary = session.get("summary", "")
-    last_category = session.get("last_category", "")
 
     history.append({"role": "user", "content": req.message})
 
-    category = resolve_category(req.message, last_category)
+    category = classify_question(req.message)
     context = ""
     if category != "irrelevant":
         context = load_relevant_knowledge(req.message, category=category)
@@ -60,7 +59,6 @@ async def chat(req: ChatRequest):
     history = trim_history(history)
 
     summary = summarize_conversation(history)
-    persisted_category = category if category != "irrelevant" else last_category
-    save_session(req.session_id, history, summary, persisted_category)
+    save_session(req.session_id, history, summary)
 
     return {"answer": answer, "category": category}
