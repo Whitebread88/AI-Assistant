@@ -1,22 +1,35 @@
-from google.cloud import firestore
 from datetime import datetime
 
-db = firestore.Client(database="conversation-metadata")
+from google.cloud import firestore
 
 MAX_TURNS = 8
 
-def get_session(session_id: str):
-    doc = db.collection("chats").document(session_id).get()
-    if doc.exists:
-        return doc.to_dict()
-    return {"messages": [], "summary": ""}
 
-def save_session(session_id: str, messages, summary):
-    db.collection("chats").document(session_id).set({
-        "messages": messages,
+def _db():
+    return firestore.Client(database="conversation-metadata")
+
+
+def get_session(session_id: str):
+    doc = _db().collection("chats").document(session_id).get()
+    if doc.exists:
+        data = doc.to_dict()
+        history = data.get("history") or data.get("messages") or []
+        return {
+            "history": history,
+            "summary": data.get("summary", ""),
+            "last_category": data.get("last_category", ""),
+        }
+    return {"history": [], "summary": "", "last_category": ""}
+
+
+def save_session(session_id: str, history, summary, last_category):
+    _db().collection("chats").document(session_id).set({
+        "history": history,
         "summary": summary,
+        "last_category": last_category,
         "updated_at": datetime.utcnow()
     })
 
-def trim_history(messages):
-    return messages[-MAX_TURNS:]
+
+def trim_history(history):
+    return history[-MAX_TURNS:]
