@@ -1,7 +1,7 @@
 from google.cloud import firestore
 from datetime import datetime
 
-db = firestore.Client()
+db = firestore.Client(database="conversation-metadata")
 
 MAX_TURNS = 8
 
