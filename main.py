@@ -1,12 +1,24 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-
+from fastapi.middleware.cors import CORSMiddleware
 from llm import classify_categories, generate_answer, summarize_conversation
 from memory import get_session, save_session, trim_history
 from storage import load_relevant_knowledge
 
 app = FastAPI()
 
+# Your Vercel & Local URLs
+origins = [
+    "https://www.aaronfoong.com"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ChatRequest(BaseModel):
     session_id: str
