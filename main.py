@@ -6,6 +6,7 @@ from memory import get_session, save_session, trim_history
 from storage import load_relevant_knowledge
 from slowapi import Limiter
 from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from pydantic import BaseModel, constr
 
