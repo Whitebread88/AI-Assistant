@@ -1,0 +1,1 @@
+CATEGORIES = ["Drinks", "Food", "Desserts"]

@@ -1,57 +1,47 @@
 import os
+
 import google.generativeai as genai
 
-# Configure API key
+from constants import CATEGORIES
+
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-MODEL_NAME = "gemini-2.5-flash"
-
-model = genai.GenerativeModel(MODEL_NAME)
-
-CATEGORIES = [
-    "Drinks",
-    "Food",
-    "Desserts"
-]
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 
-# -----------------------------------
-# 1️⃣ CLASSIFIER
-# -----------------------------------
-def classify_question(question: str) -> str:
+def classify_categories(question: str) -> list[str]:
     prompt = f"""
 You are a classifier.
-
-Select the single most relevant category from:
-
+Select all relevant categories from this list:
 {", ".join(CATEGORIES)}
 
-Return ONLY the category name.
-IF none of the category is relevant, return "irrelevant".
+Return ONLY a comma-separated list of category names.
+If none are relevant, return "none".
 
 Question: {question}
 """
 
-    response = model.generate_content(
-        prompt,
-        generation_config={
-            "temperature": 0.0
-        }
+    response = model.generate_content(prompt, generation_config={"temperature": 0.0})
+    raw = (response.text or "").strip()
+    if not raw or raw.lower() == "none":
+        return []
+
+    selected: list[str] = []
+    for part in raw.split(","):
+        candidate = part.strip()
+        if candidate in CATEGORIES and candidate not in selected:
+            selected.append(candidate)
+    return selected
+
+
+def generate_answer(
+    question: str,
+    context: str,
+    summary: str,
+    history: list[dict[str, str]],
+) -> str:
+    history_text = "\n".join(
+        f"{message['role'].upper()}: {message['content']}" for message in history
     )
-    category = response.text.strip()
-    # Fallback if unexpected category
-    if category not in CATEGORIES:
-        category = "technical_support"
-
-    return category
-
-# -----------------------------------
-# 2️⃣ GENERATE ANSWER
-# -----------------------------------
-def generate_answer(question, context, summary, history):
-    history_text = ""
-    for msg in history:
-        history_text += f"{msg['role'].upper()}: {msg['content']}\n"
 
     prompt = f"""
 You are a helpful conversational assistant.
@@ -60,8 +50,7 @@ Behavior Rules:
 - Maintain natural conversation.
 - Use conversation history and summary for continuity.
 - If relevant Knowledge Context is provided, use it for factual accuracy.
-- If knowledge is missing for a factual question, say:
-  "I do not have that information."
+- If knowledge is missing for a factual question, say: "I do not have that information."
 - Do not fabricate business facts.
 - Be concise but natural.
 
@@ -78,25 +67,17 @@ User Question:
 {question}
 """
 
-
     response = model.generate_content(
         prompt,
-        generation_config={
-            "temperature": 0.3,
-            "max_output_tokens": 512
-        }
+        generation_config={"temperature": 0.3, "max_output_tokens": 512},
     )
+    return (response.text or "").strip()
 
-    return response.text.strip()
 
-
-# -----------------------------------
-# 3️⃣ SUMMARIZE CONVERSATION
-# -----------------------------------
-def summarize_conversation(messages):
-    conversation_text = ""
-    for msg in messages:
-        conversation_text += f"{msg['role'].upper()}: {msg['content']}\n"
+def summarize_conversation(messages: list[dict[str, str]]) -> str:
+    conversation_text = "\n".join(
+        f"{message['role'].upper()}: {message['content']}" for message in messages
+    )
 
     prompt = f"""
 Summarize the following conversation briefly.
@@ -108,10 +89,6 @@ Conversation:
 
     response = model.generate_content(
         prompt,
-        generation_config={
-            "temperature": 0.0,
-            "max_output_tokens": 200
-        }
+        generation_config={"temperature": 0.0, "max_output_tokens": 200},
     )
-
-    return response.text.strip()
+    return (response.text or "").strip()
