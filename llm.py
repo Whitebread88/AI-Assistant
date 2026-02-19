@@ -20,13 +20,14 @@ CATEGORIES = [
 # -----------------------------------
 def classify_question(question: str) -> str:
     prompt = f"""
-You are a strict classifier.
+You are a classifier.
 
 Select the single most relevant category from:
 
 {", ".join(CATEGORIES)}
 
 Return ONLY the category name.
+IF none of the category is relevant, return "irrelevant".
 
 Question: {question}
 """
@@ -34,8 +35,7 @@ Question: {question}
     response = model.generate_content(
         prompt,
         generation_config={
-            "temperature": 0.0,
-            "max_output_tokens": 50
+            "temperature": 0.0
         }
     )
     category = response.text.strip()
