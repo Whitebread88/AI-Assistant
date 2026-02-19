@@ -72,8 +72,8 @@ async def rate_limit_handler(request, exc):
 async def chat(request: Request, data: ChatRequest, x_internal_secret: str = Header(None)):
     if x_internal_secret != EXPECTED_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden")
-    session_id = req.session_id.strip()
-    message = req.message.strip()
+    session_id = data.session_id.strip()
+    message = data.message.strip()
 
     if not session_id:
         raise HTTPException(status_code=400, detail="Missing session_id")
