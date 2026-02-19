@@ -37,8 +37,7 @@ async def chat(req: ChatRequest):
         use_knowledge = False
     
     if use_knowledge:
-        category = classify_question(req.message)
-        context = load_category_file(category)
+        context = load_relevant_knowledge(req.message)
     else:
         context = ""  # no strict knowledge constraint
     
