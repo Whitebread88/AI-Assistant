@@ -1,11 +1,21 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import Header, FastAPI, HTTPException
+import os
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from llm import classify_categories, generate_answer, summarize_conversation
 from memory import get_session, save_session, trim_history
 from storage import load_relevant_knowledge
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from pydantic import BaseModel, constr
+
 
 app = FastAPI()
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+EXPECTED_SECRET = os.getenv("INTERNAL_CHAT_SECRET")
 
 # Your Vercel & Local URLs
 origins = [
@@ -22,8 +32,7 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     session_id: str
-    message: str
-
+    message: constr(min_length=1, max_length=2000)
 
 def _resolve_active_categories(message: str, previous: list[str]) -> list[str]:
     """Detect categories for this turn and preserve multi-turn context.
@@ -48,7 +57,10 @@ def root() -> dict[str, str]:
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest) -> dict:
+@limiter.limit("5/minute")
+async def chat(data: ChatRequest, x_internal_secret: str = Header(None)):
+    if x_internal_secret != EXPECTED_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden")
     session_id = req.session_id.strip()
     message = req.message.strip()
 
