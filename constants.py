@@ -1,1 +1,1 @@
-CATEGORIES = ["Drinks", "Food", "Desserts"]
+CATEGORIES = ["Contact", "Experience", "Education", "Project", "Skills", "Personal_Information", "Ambition", "Collaboration", "Hobby", "Value"]
