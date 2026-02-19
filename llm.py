@@ -9,7 +9,9 @@ MODEL_NAME = "gemini-2.5-flash"
 model = genai.GenerativeModel(MODEL_NAME)
 
 CATEGORIES = [
-    "Drinks"
+    "Drinks",
+    "Food",
+    "Desserts"
 ]
 
 
@@ -36,25 +38,12 @@ Question: {question}
             "max_output_tokens": 50
         }
     )
-
-    # Safely extract text
-    if response.candidates and len(response.candidates) > 0:
-        part = response.candidates[0].content
-        if hasattr(part, "text") and part.text:
-            category = part.text.strip()
-        else:
-            category = "technical_support"
-    else:
-        category = "technical_support"
-
+    category = response.text.strip()
     # Fallback if unexpected category
     if category not in CATEGORIES:
         category = "technical_support"
 
     return category
-
-
-
 
 # -----------------------------------
 # 2️⃣ GENERATE ANSWER
