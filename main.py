@@ -1,4 +1,4 @@
-from fastapi import Header, FastAPI, HTTPException
+from fastapi import Header, FastAPI, HTTPException, Request
 import os
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,10 +9,15 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from pydantic import BaseModel, constr
 
-
 app = FastAPI()
 
-limiter = Limiter(key_func=get_remote_address)
+
+def get_real_ip(request: Request):
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0]
+    return request.client.host
+limiter = Limiter(key_func=get_real_ip)
 app.state.limiter = limiter
 
 EXPECTED_SECRET = os.getenv("INTERNAL_CHAT_SECRET")
