@@ -13,6 +13,18 @@ class ChatRequest(BaseModel):
     message: str
 
 
+def resolve_category(message: str, last_category: str) -> str:
+    """Resolve category with follow-up continuity.
+
+    If current message is irrelevant but we already have an active session category,
+    continue using the previous category so short follow-ups still work.
+    """
+    category = classify_question(message)
+    if category == "irrelevant" and last_category:
+        return last_category
+    return category
+
+
 @app.get("/")
 def root():
     return {"status": "running", "message": "Chatbot API is live"}

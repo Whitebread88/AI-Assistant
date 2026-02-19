@@ -22,6 +22,7 @@ def save_session(session_id: str, history, summary):
     _db().collection("chats").document(session_id).set({
         "history": history,
         "summary": summary,
+        "last_category": last_category,
         "updated_at": datetime.utcnow()
     })
 
