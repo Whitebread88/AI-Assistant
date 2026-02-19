@@ -57,10 +57,11 @@ def generate_answer(question, context, summary, history):
 You are a helpful assistant.
 
 Rules:
-- Answer ONLY using the provided knowledge context.
-- If the answer is not found, say:
+- Use conversation history for context.
+- If Knowledge Context is provided, use it for factual business info.
+- If Knowledge Context is empty, answer conversationally.
+- If factual info is not in Knowledge Context, say:
   "I do not have that information."
-- Do not fabricate.
 - Be concise.
 
 Conversation Summary:
