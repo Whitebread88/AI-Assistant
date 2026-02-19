@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from llm import classify_question, generate_answer, summarize_conversation
+from llm import classify_categories, generate_answer, summarize_conversation
 from memory import get_session, save_session, trim_history
 from storage import load_relevant_knowledge
 
@@ -13,52 +13,60 @@ class ChatRequest(BaseModel):
     message: str
 
 
-def resolve_category(message: str, last_category: str) -> str:
-    """Resolve category with follow-up continuity.
+def _resolve_active_categories(message: str, previous: list[str]) -> list[str]:
+    """Detect categories for this turn and preserve multi-turn context.
 
-    If current message is irrelevant but we already have an active session category,
-    continue using the previous category so short follow-ups still work.
+    - If current turn has categories, merge them with previously active categories.
+    - If current turn has no category, keep previously active categories.
     """
-    category = classify_question(message)
-    if category == "irrelevant" and last_category:
-        return last_category
-    return category
+    current = classify_categories(message)
+    if not current:
+        return previous
+
+    merged = list(previous)
+    for category in current:
+        if category not in merged:
+            merged.append(category)
+    return merged
 
 
 @app.get("/")
-def root():
+def root() -> dict[str, str]:
     return {"status": "running", "message": "Chatbot API is live"}
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest):
-    if not req.session_id.strip():
+async def chat(req: ChatRequest) -> dict:
+    session_id = req.session_id.strip()
+    message = req.message.strip()
+
+    if not session_id:
         raise HTTPException(status_code=400, detail="Missing session_id")
-    if not req.message.strip():
+    if not message:
         raise HTTPException(status_code=400, detail="Missing message")
 
-    session = get_session(req.session_id)
-    history = session.get("history", [])
-    summary = session.get("summary", "")
+    session = get_session(session_id)
+    session.history.append({"role": "user", "content": message})
 
-    history.append({"role": "user", "content": req.message})
-
-    category = classify_question(req.message)
-    context = ""
-    if category != "irrelevant":
-        context = load_relevant_knowledge(req.message, category=category)
+    session.active_categories = _resolve_active_categories(
+        message,
+        session.active_categories,
+    )
+    context = load_relevant_knowledge(session.active_categories)
 
     answer = generate_answer(
-        question=req.message,
+        question=message,
         context=context,
-        summary=summary,
-        history=history,
+        summary=session.summary,
+        history=session.history,
     )
 
-    history.append({"role": "assistant", "content": answer})
-    history = trim_history(history)
+    session.history.append({"role": "assistant", "content": answer})
+    session.history = trim_history(session.history)
+    session.summary = summarize_conversation(session.history)
 
-    summary = summarize_conversation(history)
-    save_session(req.session_id, history, summary)
-
-    return {"answer": answer, "category": category}
+    save_session(session_id, session)
+    return {
+        "answer": answer,
+        "categories": session.active_categories,
+    }

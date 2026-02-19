@@ -1,5 +1,1 @@
-CATEGORIES = [
-    "Drinks",
-    "Food",
-    "Desserts",
-]
+CATEGORIES = ["Drinks", "Food", "Desserts"]
