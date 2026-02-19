@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from storage import load_category_file
+from storage import load_relevant_knowledge
 from memory import get_session, save_session, trim_history
 from llm import classify_question, generate_answer, summarize_conversation
 
