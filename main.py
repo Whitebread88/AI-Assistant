@@ -10,6 +10,12 @@ class ChatRequest(BaseModel):
     session_id: str
     message: str
 
+
+@app.get("/")
+def root():
+    return {"status": "running", "message": "Chatbot API is live"}
+
+
 @app.post("/chat")
 async def chat(req: ChatRequest):
     if not req.session_id:
