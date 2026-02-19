@@ -1,18 +1,14 @@
 import os
 import google.generativeai as genai
 
+from constants import CATEGORIES
+
 # Configure API key
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 MODEL_NAME = "gemini-2.5-flash"
 
 model = genai.GenerativeModel(MODEL_NAME)
-
-CATEGORIES = [
-    "Drinks",
-    "Food",
-    "Desserts"
-]
 
 
 # -----------------------------------
@@ -27,7 +23,7 @@ Select the single most relevant category from:
 {", ".join(CATEGORIES)}
 
 Return ONLY the category name.
-IF none of the category is relevant, return "irrelevant".
+If none of the categories are relevant, return "irrelevant".
 
 Question: {question}
 """
@@ -39,11 +35,11 @@ Question: {question}
         }
     )
     category = response.text.strip()
-    # Fallback if unexpected category
     if category not in CATEGORIES:
-        category = "technical_support"
+        return "irrelevant"
 
     return category
+
 
 # -----------------------------------
 # 2️⃣ GENERATE ANSWER
@@ -77,7 +73,6 @@ Knowledge Context:
 User Question:
 {question}
 """
-
 
     response = model.generate_content(
         prompt,
