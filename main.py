@@ -21,33 +21,41 @@ async def chat(req: ChatRequest):
     if not req.session_id:
         raise HTTPException(status_code=400, detail="Missing session_id")
 
-    # Load session
+    # 1️⃣ Load session
     session = get_session(req.session_id)
-    history = session["messages"]
-    summary = session["summary"]
-
-    # Step 1: Classify
-    category = classify_question(req.message)
-
-    # Step 2: Load relevant knowledge
-    context = load_category_file(category)
-
-    # Step 3: Generate answer
-    trimmed_history = trim_history(history)
-    answer = generate_answer(req.message, context, summary, trimmed_history)
-
-    # Step 4: Update history
+    history = session.get("history", [])
+    summary = session.get("summary", "")
+    
+    # 2️⃣ Append user message first
     history.append({"role": "user", "content": req.message})
+    
+    # 3️⃣ Only classify if needed
+    use_knowledge = True
+    
+    # If this is not the first message, allow conversational mode
+    if len(history) > 1:
+        use_knowledge = False
+    
+    if use_knowledge:
+        category = classify_question(req.message)
+        context = load_category_file(category)
+    else:
+        context = ""  # no strict knowledge constraint
+    
+    # 4️⃣ Generate answer
+    answer = generate_answer(
+        question=req.message,
+        context=context,
+        summary=summary,
+        history=history
+    )
+    
+    # 5️⃣ Append assistant reply
     history.append({"role": "assistant", "content": answer})
-
-    # Optional summarization trigger
-    if len(history) > 12:
-        summary = summarize_conversation(history)
-        history = trim_history(history)
-
+    
+    # 6️⃣ Summarize and save
+    summary = summarize_conversation(history)
     save_session(req.session_id, history, summary)
+    
+    return {"answer": answer}
 
-    return {
-        "reply": answer,
-        "category_used": category
-    }
