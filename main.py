@@ -5,6 +5,7 @@ from llm import classify_categories, generate_answer, summarize_conversation
 from memory import get_session, save_session, trim_history
 from storage import load_relevant_knowledge
 from slowapi import Limiter
+from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from pydantic import BaseModel, constr
 
@@ -18,6 +19,8 @@ def get_real_ip(request: Request):
     return request.client.host
 limiter = Limiter(key_func=get_real_ip)
 app.state.limiter = limiter
+
+app.add_middleware(SlowAPIMiddleware)
 
 EXPECTED_SECRET = os.getenv("INTERNAL_CHAT_SECRET")
 
@@ -59,10 +62,13 @@ def _resolve_active_categories(message: str, previous: list[str]) -> list[str]:
 def root() -> dict[str, str]:
     return {"status": "running", "message": "Chatbot API is live"}
 
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request, exc):
+    return JSONResponse(status_code=429, content={"detail": "Too many requests"})
 
 @app.post("/chat")
 @limiter.limit("7/minute")
-async def chat(data: ChatRequest, x_internal_secret: str = Header(None)):
+async def chat(request: Request, data: ChatRequest, x_internal_secret: str = Header(None)):
     if x_internal_secret != EXPECTED_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden")
     session_id = req.session_id.strip()
