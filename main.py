@@ -62,7 +62,7 @@ def root() -> dict[str, str]:
 
 
 @app.post("/chat")
-@limiter.limit("5/minute")
+@limiter.limit("7/minute")
 async def chat(data: ChatRequest, x_internal_secret: str = Header(None)):
     if x_internal_secret != EXPECTED_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden")
