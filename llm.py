@@ -9,12 +9,7 @@ MODEL_NAME = "gemini-2.5-flash"
 model = genai.GenerativeModel(MODEL_NAME)
 
 CATEGORIES = [
-    "refund",
-    "shipping",
-    "pricing",
-    "account",
-    "Drinks",
-    "technical_support"
+    "Drinks"
 ]
 
 
