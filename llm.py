@@ -54,15 +54,16 @@ def generate_answer(question, context, summary, history):
         history_text += f"{msg['role'].upper()}: {msg['content']}\n"
 
     prompt = f"""
-You are a helpful assistant.
+You are a helpful conversational assistant.
 
-Rules:
-- Use conversation history for context.
-- If Knowledge Context is provided, use it for factual business info.
-- If Knowledge Context is empty, answer conversationally.
-- If factual info is not in Knowledge Context, say:
+Behavior Rules:
+- Maintain natural conversation.
+- Use conversation history and summary for continuity.
+- If relevant Knowledge Context is provided, use it for factual accuracy.
+- If knowledge is missing for a factual question, say:
   "I do not have that information."
-- Be concise.
+- Do not fabricate business facts.
+- Be concise but natural.
 
 Conversation Summary:
 {summary}
@@ -76,6 +77,7 @@ Knowledge Context:
 User Question:
 {question}
 """
+
 
     response = model.generate_content(
         prompt,
