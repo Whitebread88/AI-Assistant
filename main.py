@@ -1,4 +1,5 @@
 from fastapi import Header, FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from llm import classify_categories, generate_answer, summarize_conversation
@@ -98,7 +99,11 @@ async def chat(request: Request, data: ChatRequest, x_internal_secret: str = Hea
 
     session.history.append({"role": "assistant", "content": answer})
     session.history = trim_history(session.history)
-    session.summary = summarize_conversation(session.history)
+
+    # Reduce end-to-end latency by refreshing summary every other assistant turn.
+    assistant_turns = sum(1 for item in session.history if item.get("role") == "assistant")
+    if assistant_turns % 2 == 0 or not session.summary:
+        session.summary = summarize_conversation(session.history)
 
     save_session(session_id, session)
     return {
