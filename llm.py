@@ -1,14 +1,26 @@
 import os
+from functools import lru_cache
 
 import google.generativeai as genai
 
 from constants import CATEGORIES
 
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-2.5-flash")
+
+ANSWER_MODEL = os.getenv("ANSWER_MODEL", "gemini-2.5-flash")
+CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "gemini-2.0-flash-lite")
+SUMMARY_MODEL = os.getenv("SUMMARY_MODEL", "gemini-2.0-flash-lite")
+
+answer_model = genai.GenerativeModel(ANSWER_MODEL)
+classifier_model = genai.GenerativeModel(CLASSIFIER_MODEL)
+summary_model = genai.GenerativeModel(SUMMARY_MODEL)
 
 
-def classify_categories(question: str) -> list[str]:
+@lru_cache(maxsize=256)
+def _classify_categories_cached(normalized_question: str) -> tuple[str, ...]:
+    if not normalized_question:
+        return tuple()
+
     prompt = f"""
 You are a classifier for portfolio topics.
 Select all relevant categories from this list:
@@ -17,20 +29,28 @@ Select all relevant categories from this list:
 Return ONLY a comma-separated list of category names.
 If none are relevant, return "none".
 
-Question: {question}
+Question: {normalized_question}
 """
 
-    response = model.generate_content(prompt, generation_config={"temperature": 0.0})
+    response = classifier_model.generate_content(
+        prompt,
+        generation_config={"temperature": 0.0, "max_output_tokens": 60},
+    )
     raw = (response.text or "").strip()
     if not raw or raw.lower() == "none":
-        return []
+        return tuple()
 
     selected: list[str] = []
     for part in raw.split(","):
         candidate = part.strip()
         if candidate in CATEGORIES and candidate not in selected:
             selected.append(candidate)
-    return selected
+    return tuple(selected)
+
+
+def classify_categories(question: str) -> list[str]:
+    normalized = question.strip().lower()
+    return list(_classify_categories_cached(normalized))
 
 
 def generate_answer(
@@ -39,8 +59,9 @@ def generate_answer(
     summary: str,
     history: list[dict[str, str]],
 ) -> str:
+    recent_history = history[-4:]
     history_text = "\n".join(
-        f"{message['role'].upper()}: {message['content']}" for message in history
+        f"{message['role'].upper()}: {message['content']}" for message in recent_history
     )
 
     prompt = f"""
@@ -76,9 +97,9 @@ You are a helpful, professional Portfolio AI Assistant representing Aaron, your 
 Assistant Response:
 """
 
-    response = model.generate_content(
+    response = answer_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.7, "max_output_tokens": 1000},
+        generation_config={"temperature": 0.5, "max_output_tokens": 500},
     )
     return (response.text or "").strip()
 
@@ -96,8 +117,8 @@ Conversation:
 {conversation_text}
 """
 
-    response = model.generate_content(
+    response = summary_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.0, "max_output_tokens": 200},
+        generation_config={"temperature": 0.0, "max_output_tokens": 120},
     )
     return (response.text or "").strip()
