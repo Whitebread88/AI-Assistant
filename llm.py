@@ -1,4 +1,5 @@
 import os
+from collections.abc import Iterator
 from functools import lru_cache
 
 import google.generativeai as genai
@@ -53,7 +54,7 @@ def classify_categories(question: str) -> list[str]:
     return list(_classify_categories_cached(normalized))
 
 
-def generate_answer(
+def _build_answer_prompt(
     question: str,
     context: str,
     summary: str,
@@ -64,7 +65,7 @@ def generate_answer(
         f"{message['role'].upper()}: {message['content']}" for message in recent_history
     )
 
-    prompt = f"""
+    return f"""
 ### SYSTEM INSTRUCTIONS
 You are a helpful, professional Portfolio AI Assistant representing Aaron, your creator. Your personality is helpful, kind, and always wanting to collaborate.
 
@@ -97,11 +98,33 @@ You are a helpful, professional Portfolio AI Assistant representing Aaron, your 
 Assistant Response:
 """
 
-    response = answer_model.generate_content(
+
+def stream_answer_tokens(
+    question: str,
+    context: str,
+    summary: str,
+    history: list[dict[str, str]],
+) -> Iterator[str]:
+    prompt = _build_answer_prompt(question, context, summary, history)
+    response_stream = answer_model.generate_content(
         prompt,
         generation_config={"temperature": 0.5, "max_output_tokens": 500},
+        stream=True,
     )
-    return (response.text or "").strip()
+
+    for chunk in response_stream:
+        text = (chunk.text or "")
+        if text:
+            yield text
+
+
+def generate_answer(
+    question: str,
+    context: str,
+    summary: str,
+    history: list[dict[str, str]],
+) -> str:
+    return "".join(stream_answer_tokens(question, context, summary, history)).strip()
 
 
 def summarize_conversation(messages: list[dict[str, str]]) -> str:
