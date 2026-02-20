@@ -108,7 +108,7 @@ def stream_answer_tokens(
     prompt = _build_answer_prompt(question, context, summary, history)
     response_stream = answer_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.5, "max_output_tokens": 500},
+        generation_config={"temperature": 0.5, "max_output_tokens": 1000},
         stream=True,
     )
 
