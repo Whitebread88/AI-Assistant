@@ -111,7 +111,7 @@ def stream_answer_tokens(
     prompt = _build_answer_prompt(question, context, summary, history)
     response_stream = answer_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.5, "max_output_tokens": 2046},
+        generation_config={"temperature": 0.5},
         safety_settings={
             "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
             "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
@@ -119,7 +119,6 @@ def stream_answer_tokens(
             "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"},
         stream=True,
     )
-    print(f"RAW OUTPUT: {response_stream}")
     for chunk in response_stream:
         text = (chunk.text or "")
         if text:
