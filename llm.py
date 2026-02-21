@@ -119,7 +119,7 @@ def stream_answer_tokens(
             "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"},
         stream=True,
     )
-
+    print(f"RAW OUTPUT: {response_stream}")
     for chunk in response_stream:
         text = (chunk.text or "")
         if text:
