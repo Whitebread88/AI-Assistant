@@ -162,4 +162,5 @@ async def chat_stream(request: Request, data: ChatRequest, x_internal_secret: st
         event_generator(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        print(f"RAW OUTPUT: {answer}")
     )
