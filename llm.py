@@ -111,7 +111,7 @@ def stream_answer_tokens(
     prompt = _build_answer_prompt(question, context, summary, history)
     response_stream = answer_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.3},
+        generation_config={"temperature": 0.3, "max_output_tokens": 2048},
         safety_settings={
             "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
             "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
@@ -125,13 +125,29 @@ def stream_answer_tokens(
             yield text
 
 
+def finalize_answer_markdown(answer: str) -> str:
+    """Close unbalanced markdown fences/backticks so the frontend parser stays stable."""
+    cleaned = answer.strip()
+    if not cleaned:
+        return cleaned
+
+    if cleaned.count("```") % 2 != 0:
+        cleaned = f"{cleaned}\n```"
+
+    if cleaned.count("`") % 2 != 0:
+        cleaned = f"{cleaned}`"
+
+    return cleaned
+
+
 def generate_answer(
     question: str,
     context: str,
     summary: str,
     history: list[dict[str, str]],
 ) -> str:
-    return "".join(stream_answer_tokens(question, context, summary, history)).strip()
+    raw_answer = "".join(stream_answer_tokens(question, context, summary, history))
+    return finalize_answer_markdown(raw_answer)
 
 
 def summarize_conversation(messages: list[dict[str, str]]) -> str:

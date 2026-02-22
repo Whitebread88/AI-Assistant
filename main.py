@@ -9,7 +9,13 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
-from llm import classify_categories, generate_answer, stream_answer_tokens, summarize_conversation
+from llm import (
+    classify_categories,
+    finalize_answer_markdown,
+    generate_answer,
+    stream_answer_tokens,
+    summarize_conversation,
+)
 from memory import get_session, save_session, trim_history
 from storage import load_relevant_knowledge
 
@@ -148,7 +154,7 @@ async def chat_stream(request: Request, data: ChatRequest, x_internal_secret: st
                 full_answer_parts.append(token)
                 yield _format_sse("token", {"text": token})
 
-            answer = "".join(full_answer_parts).strip()
+            answer = finalize_answer_markdown("".join(full_answer_parts))
             session.history.append({"role": "assistant", "content": answer})
             session.history = trim_history(session.history)
             session.summary = _update_summary(session.history, session.summary)
