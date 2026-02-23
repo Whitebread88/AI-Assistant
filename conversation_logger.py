@@ -8,8 +8,8 @@ from typing import Any
 
 from google.cloud import bigquery
 
-BQ_DATASET = os.getenv("CONVERSATION_BQ_DATASET")
-BQ_TABLE = os.getenv("CONVERSATION_BQ_TABLE")
+BQ_DATASET = os.getenv("CONVERSATION_BQ_DATASET", "chatbot")
+BQ_TABLE = os.getenv("CONVERSATION_BQ_TABLE", "conversations")
 LOG_QUEUE_MAX_SIZE = int(os.getenv("CONVERSATION_LOG_QUEUE_SIZE", "5000"))
 LOG_BATCH_SIZE = int(os.getenv("CONVERSATION_LOG_BATCH_SIZE", "50"))
 LOG_BATCH_FLUSH_SECONDS = float(os.getenv("CONVERSATION_LOG_BATCH_FLUSH_SECONDS", "0.5"))
@@ -113,11 +113,13 @@ def build_conversation_event(
     categories: list[str],
     endpoint: str,
 ) -> dict[str, Any]:
+    # BigQuery DATETIME does not accept timezone offsets. Store UTC in DATETIME-compatible format.
+    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
     return {
         "session_id": session_id,
         "user_message": user_message,
         "assistant_answer": assistant_answer,
         "categories": categories,
         "endpoint": endpoint,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": created_at,
     }
