@@ -8,8 +8,8 @@ from typing import Any
 
 from google.cloud import bigquery
 
-BQ_DATASET = os.getenv("CONVERSATION_BQ_DATASET", "chatbot")
-BQ_TABLE = os.getenv("CONVERSATION_BQ_TABLE", "conversations")
+BQ_DATASET = os.getenv("CONVERSATION_BQ_DATASET")
+BQ_TABLE = os.getenv("CONVERSATION_BQ_TABLE")
 LOG_QUEUE_MAX_SIZE = int(os.getenv("CONVERSATION_LOG_QUEUE_SIZE", "5000"))
 LOG_BATCH_SIZE = int(os.getenv("CONVERSATION_LOG_BATCH_SIZE", "50"))
 LOG_BATCH_FLUSH_SECONDS = float(os.getenv("CONVERSATION_LOG_BATCH_FLUSH_SECONDS", "0.5"))
