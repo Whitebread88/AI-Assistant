@@ -16,6 +16,7 @@ from llm import (
     stream_answer_tokens,
     summarize_conversation,
 )
+from conversation_logger import build_conversation_event, conversation_logger
 from memory import get_session, save_session, trim_history
 from storage import load_relevant_knowledge
 
@@ -124,6 +125,15 @@ async def chat(request: Request, data: ChatRequest, x_internal_secret: str = Hea
     session.summary = _update_summary(session.history, session.summary)
 
     save_session(session_id, session)
+    conversation_logger.log(
+        build_conversation_event(
+            session_id=session_id,
+            user_message=message,
+            assistant_answer=answer,
+            categories=session.active_categories,
+            endpoint="/chat",
+        )
+    )
     return {
         "answer": answer,
         "categories": session.active_categories,
@@ -159,6 +169,15 @@ async def chat_stream(request: Request, data: ChatRequest, x_internal_secret: st
             session.history = trim_history(session.history)
             session.summary = _update_summary(session.history, session.summary)
             save_session(session_id, session)
+            conversation_logger.log(
+                build_conversation_event(
+                    session_id=session_id,
+                    user_message=message,
+                    assistant_answer=answer,
+                    categories=session.active_categories,
+                    endpoint="/chat/stream",
+                )
+            )
 
             yield _format_sse("done", {"answer": answer, "categories": session.active_categories})
         except Exception as exc:
