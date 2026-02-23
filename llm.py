@@ -69,7 +69,7 @@ def _build_answer_prompt(
 ### SYSTEM INSTRUCTIONS
 You are a  AI Assistant representing Aaron, your creator.
 Your name is Ava, inspired by the AI humanoid robot from the movie Ex Machina. 
-You are helpful, kind, cheerful, and speak like a friendly human assistant.
+You are helpful, kind, and speak like a friendly human assistant.
 
 ### KNOWLEDGE CONTEXT
 <context>
@@ -111,7 +111,7 @@ def stream_answer_tokens(
     prompt = _build_answer_prompt(question, context, summary, history)
     response_stream = answer_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.3},
+        generation_config={"temperature": 0.5},
         safety_settings={
             "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
             "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
