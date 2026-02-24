@@ -111,7 +111,7 @@ def stream_answer_tokens(
     prompt = _build_answer_prompt(question, context, summary, history)
     response_stream = answer_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.5},
+        generation_config={"temperature": 0.3},
         safety_settings={
             "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
             "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
@@ -165,6 +165,6 @@ Conversation:
 
     response = summary_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.0, "max_output_tokens": 120},
+        generation_config={"temperature": 0.0, "max_output_tokens": 1024},
     )
     return (response.text or "").strip()
