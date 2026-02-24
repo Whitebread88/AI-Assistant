@@ -50,7 +50,7 @@ app.add_middleware(
 
 class ChatRequest(BaseModel):
     session_id: str
-    message: constr(min_length=1, max_length=2000)
+    message: constr(min_length=1, max_length=4000)
 
 
 def _format_sse(event: str, data: dict) -> str:
@@ -141,7 +141,7 @@ async def chat(request: Request, data: ChatRequest, x_internal_secret: str = Hea
 
 
 @app.post("/chat/stream")
-@limiter.limit("7/minute")
+@limiter.limit("10/minute")
 async def chat_stream(request: Request, data: ChatRequest, x_internal_secret: str = Header(None)):
     session_id, message = _validate_chat_request(data, x_internal_secret)
 
