@@ -17,6 +17,23 @@ classifier_model = genai.GenerativeModel(CLASSIFIER_MODEL)
 summary_model = genai.GenerativeModel(SUMMARY_MODEL)
 
 
+def _extract_response_text(response, *, strip: bool = False) -> str:
+    """Safely extract text without relying on response.text accessors."""
+    candidates = getattr(response, "candidates", None) or []
+    collected_parts: list[str] = []
+
+    for candidate in candidates:
+        content = getattr(candidate, "content", None)
+        parts = getattr(content, "parts", None) or []
+        for part in parts:
+            text = getattr(part, "text", None)
+            if text:
+                collected_parts.append(text)
+
+    text = "".join(collected_parts)
+    return text.strip() if strip else text
+
+
 @lru_cache(maxsize=256)
 def _classify_categories_cached(normalized_question: str) -> tuple[str, ...]:
     if not normalized_question:
@@ -37,7 +54,7 @@ Question: {normalized_question}
         prompt,
         generation_config={"temperature": 0.0, "max_output_tokens": 60},
     )
-    raw = (response.text or "").strip()
+    raw = _extract_response_text(response, strip=True)
     if not raw or raw.lower() == "none":
         return tuple()
 
@@ -120,7 +137,7 @@ def stream_answer_tokens(
         stream=True,
     )
     for chunk in response_stream:
-        text = (chunk.text or "")
+        text = _extract_response_text(chunk)
         if text:
             yield text
 
@@ -167,4 +184,4 @@ Conversation:
         prompt,
         generation_config={"temperature": 0.0, "max_output_tokens": 1024},
     )
-    return (response.text or "").strip()
+    return _extract_response_text(response, strip=True)
