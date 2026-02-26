@@ -17,7 +17,7 @@ classifier_model = genai.GenerativeModel(CLASSIFIER_MODEL)
 summary_model = genai.GenerativeModel(SUMMARY_MODEL)
 
 
-def _extract_response_text(response) -> str:
+def _extract_response_text(response, *, strip: bool = False) -> str:
     """Safely extract text without relying on response.text accessors."""
     candidates = getattr(response, "candidates", None) or []
     collected_parts: list[str] = []
@@ -30,7 +30,8 @@ def _extract_response_text(response) -> str:
             if text:
                 collected_parts.append(text)
 
-    return "".join(collected_parts).strip()
+    text = "".join(collected_parts)
+    return text.strip() if strip else text
 
 
 @lru_cache(maxsize=256)
@@ -53,7 +54,7 @@ Question: {normalized_question}
         prompt,
         generation_config={"temperature": 0.0, "max_output_tokens": 60},
     )
-    raw = _extract_response_text(response)
+    raw = _extract_response_text(response, strip=True)
     if not raw or raw.lower() == "none":
         return tuple()
 
@@ -183,4 +184,4 @@ Conversation:
         prompt,
         generation_config={"temperature": 0.0, "max_output_tokens": 1024},
     )
-    return _extract_response_text(response)
+    return _extract_response_text(response, strip=True)
