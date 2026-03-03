@@ -1,4 +1,4 @@
-# AI-Assistant Backend
+# Cloud Run
 
 A FastAPI backend for an AI persona assistant (“Ava”) that answers questions about Aaron using category-specific knowledge files, Gemini models, and persistent conversation state in Firestore.
 
