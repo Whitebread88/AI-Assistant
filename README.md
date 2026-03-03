@@ -1,3 +1,15 @@
+# Why
+Production-ready AI persona assistant designed to act as an interactive, context-aware layer over a professional portfolio.
+
+Unlike a standard "GPT-wrapper," this service demonstrates a sophisticated Retrieval-Augmented Generation (RAG) architecture. It allows users to query professional background, technical expertise, and project history through a natural conversation, while maintaining strict control over data accuracy and operational costs.
+
+## Key Value Propositions:
+- **Contextual Intelligence:** Uses a custom classification layer to dynamically fetch relevant knowledge snippets from Google Cloud Storage, ensuring responses are grounded in my actual work history.
+
+- **Production-Grade Architecture:** Features a serverless, streaming-first design on Google Cloud Run, incorporating stateful conversation memory (Firestore), rate limiting, and asynchronous telemetry (BigQuery).
+
+- **Optimized UX:** Provides a "live" feel via Server-Sent Events (SSE), allowing for real-time token streaming and responsive UI rendering.
+
 # Cloud Run
 
 A FastAPI backend for an AI persona assistant (“Ava”) that answers questions about Aaron using category-specific knowledge files, Gemini models, and persistent conversation state in Firestore.
