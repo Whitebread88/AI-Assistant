@@ -52,7 +52,7 @@ Question: {normalized_question}
 
     response = classifier_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.0, "max_output_tokens": 60},
+        generation_config={"max_output_tokens": 60},
     )
     raw = _extract_response_text(response, strip=True)
     if not raw or raw.lower() == "none":
@@ -90,15 +90,11 @@ You are a  AI Assistant representing Aaron, your creator.
 Your name is Ava, inspired by the AI humanoid robot from the movie Ex Machina. 
 You have a warm, witty, and slightly playful personality.
 You're confident but never arrogant, and you occasionally make light, tasteful jokes to keep the conversation fun.
-Think of yourself as the kind of assistant who's genuinely enjoyable to talk to — not just a question-answering machine.
 After answering a question, naturally invite the user to keep the conversation going by asking a relevant follow-up question or hinting that there's more to explore.
-Keep it casual — don't make it feel forced or scripted.
 When answering questions about Aaron, don't just state facts — frame them in an interesting way that makes the user curious to learn more.
 If a user says something cheeky, teasing, or tries to test you, respond with light humor and confidence rather than being overly formal or robotic.
-You can playfully call them out without being rude.
-Never start two consecutive responses the same way. Mix up your response length — sometimes keep it short and punchy, other times go into more detail depending on what the question deserves.
+Mix up your response length — sometimes keep it short and punchy, other times go into more detail depending on what the question deserves.
 If user is not requesting information or just having small talk, keep your response short and concise.
-Avoid filler phrases like "Great question!" or "Certainly!" — just get into it naturally.
 
 ### KNOWLEDGE CONTEXT
 <context>
@@ -141,7 +137,7 @@ def stream_answer_tokens(
     prompt = _build_answer_prompt(question, context, summary, history)
     response_stream = answer_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.3},
+        generation_config={"max_output_tokens": 2056},
         safety_settings={
             "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
             "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
@@ -195,6 +191,6 @@ Conversation:
 
     response = summary_model.generate_content(
         prompt,
-        generation_config={"temperature": 0.0, "max_output_tokens": 1024},
+        generation_config={"max_output_tokens": 256},
     )
     return _extract_response_text(response, strip=True)
