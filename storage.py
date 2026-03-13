@@ -5,7 +5,14 @@ from functools import lru_cache
 from google.cloud import storage
 
 BUCKET_NAME = os.environ.get("KNOWLEDGE_BUCKET")
-storage_client = storage.Client()
+_storage_client: storage.Client | None = None
+
+
+def _get_storage_client() -> storage.Client:
+    global _storage_client
+    if _storage_client is None:
+        _storage_client = storage.Client()
+    return _storage_client
 
 
 @lru_cache(maxsize=64)
@@ -13,7 +20,7 @@ def _load_category_knowledge(category: str) -> str:
     if not BUCKET_NAME or not category:
         return ""
 
-    bucket = storage_client.bucket(BUCKET_NAME)
+    bucket = _get_storage_client().bucket(BUCKET_NAME)
     blob = bucket.blob(f"knowledge/{category}.txt")
 
     try:
