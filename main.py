@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 from fastapi import Header, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,6 +23,11 @@ from storage import load_relevant_knowledge
 
 app = FastAPI()
 
+SUMMARY_REFRESH_TURNS = 4
+SMALL_TALK_PATTERN = re.compile(
+    r"^(hi|hello|hey|yo|sup|good\s+(morning|afternoon|evening)|how are you|what'?s up|thanks|thank you)[!.?\s]*$",
+    re.IGNORECASE,
+)
 
 def get_real_ip(request: Request):
     forwarded = request.headers.get("x-forwarded-for")
@@ -72,11 +78,25 @@ def _resolve_active_categories(message: str, previous: list[str]) -> list[str]:
 
 def _update_summary(session_history: list[dict[str, str]], previous_summary: str) -> str:
     assistant_turns = sum(1 for item in session_history if item.get("role") == "assistant")
-    if assistant_turns % 2 == 0 or not previous_summary:
+    if assistant_turns % SUMMARY_REFRESH_TURNS == 0 or not previous_summary:
         return summarize_conversation(session_history)
     return previous_summary
 
+def _is_small_talk(message: str) -> bool:
+    normalized = message.strip().lower()
+    if not normalized:
+        return False
+    if SMALL_TALK_PATTERN.match(normalized):
+        return True
+    return len(normalized.split()) <= 3 and normalized in {"hi", "hello", "hey", "yo", "thanks"}
 
+
+def _small_talk_response() -> str:
+    return (
+        "Hey there 👋 I'm Ava. I can walk you through Aaron's projects, skills, and experience—"
+        "what are you most curious about?"
+    )
+    
 def _validate_chat_request(data: ChatRequest, x_internal_secret: str) -> tuple[str, str]:
     if x_internal_secret != EXPECTED_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -147,7 +167,34 @@ async def chat_stream(request: Request, data: ChatRequest, x_internal_secret: st
 
     session = get_session(session_id)
     session.history.append({"role": "user", "content": message})
+    
+    if _is_small_talk(message):
+        answer = _small_talk_response()
+        session.history.append({"role": "assistant", "content": answer})
+        session.history = trim_history(session.history)
+        session.summary = _update_summary(session.history, session.summary)
+        save_session(session_id, session)
+        conversation_logger.log(
+            build_conversation_event(
+                session_id=session_id,
+                user_message=message,
+                assistant_answer=answer,
+                categories=session.active_categories,
+                endpoint="/chat/stream",
+            )
+        )
 
+        def small_talk_event_generator():
+            yield _format_sse("metadata", {"categories": session.active_categories})
+            yield _format_sse("token", {"text": answer})
+            yield _format_sse("done", {"answer": answer, "categories": session.active_categories})
+
+        return StreamingResponse(
+            small_talk_event_generator(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+        
     session.active_categories = _resolve_active_categories(message, session.active_categories)
     context = load_relevant_knowledge(session.active_categories)
 
