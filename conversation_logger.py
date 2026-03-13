@@ -30,17 +30,27 @@ class ConversationLogger:
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
         self._client: bigquery.Client | None = None
+        self._started = False
+        self._start_lock = threading.Lock()
 
-        if self.enabled:
+        if not self.enabled:
+            print("BigQuery conversation logging is disabled: missing GOOGLE_CLOUD_PROJECT/GCP_PROJECT")
+
+    def _ensure_started(self) -> None:
+        if not self.enabled or self._started:
+            return
+        with self._start_lock:
+            if self._started:
+                return
             self._thread = threading.Thread(target=self._run, daemon=True)
             self._thread.start()
             atexit.register(self.stop)
-        else:
-            print("BigQuery conversation logging is disabled: missing GOOGLE_CLOUD_PROJECT/GCP_PROJECT")
+            self._started = True
 
     def log(self, payload: dict[str, Any]) -> None:
         if not self.enabled:
             return
+        self._ensure_started()
         try:
             self._queue.put_nowait(payload)
         except queue.Full:
@@ -48,7 +58,7 @@ class ConversationLogger:
             print("BigQuery log queue is full. Dropping conversation event.")
 
     def stop(self) -> None:
-        if not self.enabled:
+        if not self.enabled or not self._started:
             return
         self._stop_event.set()
         if self._thread and self._thread.is_alive():
