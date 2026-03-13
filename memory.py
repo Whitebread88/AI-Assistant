@@ -4,7 +4,7 @@ from typing import Any
 
 from google.cloud import firestore
 
-MAX_TURNS = 8
+MAX_TURNS = 4
 
 
 @dataclass
