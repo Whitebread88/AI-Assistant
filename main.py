@@ -25,7 +25,7 @@ app = FastAPI()
 
 SUMMARY_REFRESH_TURNS = 4
 SMALL_TALK_PATTERN = re.compile(
-    r"^(hi|hello|hey|yo|sup|good\s+(morning|afternoon|evening)|how are you|what'?s up|thanks|thank you)[!.?\s]*$",
+    r"^(hi|hello|hey|yo|sup|good\s+(morning|afternoon|evening))[!.?\s]*$",
     re.IGNORECASE,
 )
 
@@ -88,12 +88,12 @@ def _is_small_talk(message: str) -> bool:
         return False
     if SMALL_TALK_PATTERN.match(normalized):
         return True
-    return len(normalized.split()) <= 3 and normalized in {"hi", "hello", "hey", "yo", "thanks"}
+    return len(normalized.split()) <= 3 and normalized in {"hi", "hello", "hey", "yo"}
 
 
 def _small_talk_response() -> str:
     return (
-        "Hey there 👋 I'm Ava. I can walk you through Aaron's projects, skills, and experience—"
+        "Hey there 👋 I'm Ava. I can walk you through Aaron's professional life - "
         "what are you most curious about?"
     )
     
