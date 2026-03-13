@@ -5,7 +5,7 @@ from typing import Any
 from google.cloud import firestore
 
 MAX_TURNS = 4
-
+_db_client: firestore.Client | None = None
 
 @dataclass
 class SessionState:
@@ -15,7 +15,10 @@ class SessionState:
 
 
 def _db() -> firestore.Client:
-    return firestore.Client(database="conversation-metadata")
+    global _db_client
+    if _db_client is None:
+        _db_client = firestore.Client(database="conversation-metadata")
+    return _db_client
 
 
 def _normalize_categories(data: dict[str, Any]) -> list[str]:
