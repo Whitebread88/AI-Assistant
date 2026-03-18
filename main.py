@@ -43,7 +43,8 @@ app.add_middleware(SlowAPIMiddleware)
 
 EXPECTED_SECRET = os.getenv("INTERNAL_CHAT_SECRET")
 
-origins = ["https://www.aaronfoong.com"]
+origins = ["https://www.aaronfoong.com",
+          "https://aaronfoong.com"]
 
 app.add_middleware(
     CORSMiddleware,
@@ -111,11 +112,13 @@ def _validate_chat_request(data: ChatRequest, x_internal_secret: str) -> tuple[s
 
     return session_id, message
 
-
 @app.get("/")
-def root() -> dict[str, str]:
+def root(x_internal_secret: str = Header(None)) -> dict[str, str]:
+    # Ensure only your Vercel Proxy can wake up the container
+    if EXPECTED_SECRET and x_internal_secret != EXPECTED_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden")
+        
     return {"status": "running", "message": "Chatbot API is live"}
-
 
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request, exc):
