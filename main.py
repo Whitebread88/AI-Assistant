@@ -236,5 +236,10 @@ async def chat_stream(request: Request, data: ChatRequest, x_internal_secret: st
     return StreamingResponse(
         event_generator(),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache, no-transform", # Added no-transform here too
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
     )
