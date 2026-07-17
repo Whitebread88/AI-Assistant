@@ -102,6 +102,59 @@ def classify_categories(question: str) -> list[str]:
     return list(_classify_categories_cached(normalized))
 
 
+MAX_SELECTED_ARTICLES = 2
+
+
+def select_relevant_articles(
+    question: str,
+    index_entries: list[dict],
+    exclude_slugs: list[str],
+) -> list[str]:
+    """Pick up to MAX_SELECTED_ARTICLES article slugs from the index for a question."""
+    excluded = {slug for slug in exclude_slugs if slug}
+    candidates = [
+        entry for entry in index_entries
+        if entry.get("slug") and entry["slug"] not in excluded
+    ]
+    if not candidates:
+        return []
+
+    listing = "\n".join(
+        f"- {entry['slug']}: {entry.get('title', '')} | {entry.get('summary', '')}"
+        for entry in candidates
+    )
+
+    prompt = f"""
+You match a reader's question to articles from Aaron's website.
+Available articles (slug: title | summary):
+{listing}
+
+Return ONLY a comma-separated list of at most {MAX_SELECTED_ARTICLES} slugs whose articles are relevant to the question.
+If none are relevant, return "none".
+
+Question: {question}
+"""
+
+    response = _get_client().models.generate_content(
+        model=CLASSIFIER_MODEL,
+        contents=prompt,
+        config=_generation_config(max_output_tokens=150),
+    )
+    raw = _extract_response_text(response, strip=True)
+    if not raw or raw.lower() == "none":
+        return []
+
+    valid_slugs = {entry["slug"] for entry in candidates}
+    selected: list[str] = []
+    for part in raw.split(","):
+        slug = part.strip().strip("`'\"")
+        if slug in valid_slugs and slug not in selected:
+            selected.append(slug)
+        if len(selected) >= MAX_SELECTED_ARTICLES:
+            break
+    return selected
+
+
 def _build_answer_prompt(
     question: str,
     context: str,
