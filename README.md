@@ -161,9 +161,10 @@ SSE events emitted in sequence:
 
 ### Model selection (optional)
 
-- `ANSWER_MODEL` (default: `gemini-2.5-flash`)
-- `CLASSIFIER_MODEL` (default: `gemini-2.5-flash-lite`)
-- `SUMMARY_MODEL` (default: `gemini-2.5-flash-lite`)
+- `ANSWER_MODEL` (default: `gemini-3.1-flash-lite`)
+- `CLASSIFIER_MODEL` (default: `gemini-3.1-flash-lite`)
+- `SUMMARY_MODEL` (default: `gemini-3.1-flash-lite`)
+- `GEMINI_THINKING_LEVEL` (default: `minimal`) — Gemini 3 reasoning level (`minimal`, `low`, `medium`, `high`); `minimal` keeps latency lowest.
 
 ### Storage and persistence
 

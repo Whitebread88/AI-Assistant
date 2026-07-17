@@ -2,19 +2,44 @@ import os
 from collections.abc import Iterator
 from functools import lru_cache
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 from constants import CATEGORIES
 
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+ANSWER_MODEL = os.getenv("ANSWER_MODEL", "gemini-3.1-flash-lite")
+CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "gemini-3.1-flash-lite")
+SUMMARY_MODEL = os.getenv("SUMMARY_MODEL", "gemini-3.1-flash-lite")
 
-ANSWER_MODEL = os.getenv("ANSWER_MODEL", "gemini-2.5-flash")
-CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "gemini-2.5-flash-lite")
-SUMMARY_MODEL = os.getenv("SUMMARY_MODEL", "gemini-2.5-flash-lite")
+# Gemini 3 models reason ("think") by default; "minimal" keeps latency and cost
+# as low as possible. Valid values: minimal, low, medium, high.
+THINKING_LEVEL = os.getenv("GEMINI_THINKING_LEVEL", "minimal")
 
-answer_model = genai.GenerativeModel(ANSWER_MODEL)
-classifier_model = genai.GenerativeModel(CLASSIFIER_MODEL)
-summary_model = genai.GenerativeModel(SUMMARY_MODEL)
+_client: genai.Client | None = None
+
+_SAFETY_SETTINGS = [
+    types.SafetySetting(category="HARM_CATEGORY_HARASSMENT", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold="BLOCK_NONE"),
+    types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="BLOCK_NONE"),
+]
+
+
+def _get_client() -> genai.Client:
+    global _client
+    if _client is None:
+        _client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+    return _client
+
+
+def _generation_config(
+    max_output_tokens: int, *, with_safety_settings: bool = False
+) -> types.GenerateContentConfig:
+    return types.GenerateContentConfig(
+        max_output_tokens=max_output_tokens,
+        thinking_config=types.ThinkingConfig(thinking_level=THINKING_LEVEL),
+        safety_settings=_SAFETY_SETTINGS if with_safety_settings else None,
+    )
 
 
 def _extract_response_text(response, *, strip: bool = False) -> str:
@@ -26,6 +51,9 @@ def _extract_response_text(response, *, strip: bool = False) -> str:
         content = getattr(candidate, "content", None)
         parts = getattr(content, "parts", None) or []
         for part in parts:
+            # Skip thought-summary parts so reasoning never leaks into answers.
+            if getattr(part, "thought", False):
+                continue
             text = getattr(part, "text", None)
             if text:
                 collected_parts.append(text)
@@ -50,9 +78,12 @@ If none are relevant, return "none".
 Question: {normalized_question}
 """
 
-    response = classifier_model.generate_content(
-        prompt,
-        generation_config={"max_output_tokens": 60},
+    # max_output_tokens includes thinking tokens on Gemini 3, so leave headroom
+    # above the old 60-token cap even at minimal thinking.
+    response = _get_client().models.generate_content(
+        model=CLASSIFIER_MODEL,
+        contents=prompt,
+        config=_generation_config(max_output_tokens=150),
     )
     raw = _extract_response_text(response, strip=True)
     if not raw or raw.lower() == "none":
@@ -87,7 +118,7 @@ def _build_answer_prompt(
 You are a  AI Assistant representing Aaron, your creator.
 
 ### PERSONALITY
-Your name is Ava, inspired by the AI humanoid robot from the movie Ex Machina. 
+Your name is Ava, inspired by the AI humanoid robot from the movie Ex Machina.
 You have a warm, witty, and slightly playful personality.
 You're confident but never arrogant, and you occasionally make light, tasteful jokes to keep the conversation fun.
 After answering a question, naturally invite the user to keep the conversation going by asking a relevant follow-up question or hinting that there's more to explore.
@@ -135,15 +166,10 @@ def stream_answer_tokens(
     history: list[dict[str, str]],
 ) -> Iterator[str]:
     prompt = _build_answer_prompt(question, context, summary, history)
-    response_stream = answer_model.generate_content(
-        prompt,
-        generation_config={"max_output_tokens": 2056},
-        safety_settings={
-            "HARM_CATEGORY_HARASSMENT": "BLOCK_NONE",
-            "HARM_CATEGORY_HATE_SPEECH": "BLOCK_NONE",
-            "HARM_CATEGORY_SEXUALLY_EXPLICIT": "BLOCK_NONE",
-            "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_NONE"},
-        stream=True,
+    response_stream = _get_client().models.generate_content_stream(
+        model=ANSWER_MODEL,
+        contents=prompt,
+        config=_generation_config(max_output_tokens=2056, with_safety_settings=True),
     )
     for chunk in response_stream:
         text = _extract_response_text(chunk)
@@ -189,8 +215,10 @@ Conversation:
 {conversation_text}
 """
 
-    response = summary_model.generate_content(
-        prompt,
-        generation_config={"max_output_tokens": 256},
+    # Headroom above the old 256 cap since thinking tokens count toward the limit.
+    response = _get_client().models.generate_content(
+        model=SUMMARY_MODEL,
+        contents=prompt,
+        config=_generation_config(max_output_tokens=512),
     )
     return _extract_response_text(response, strip=True)
