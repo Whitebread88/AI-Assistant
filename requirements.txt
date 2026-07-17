@@ -1,5 +1,5 @@
 fastapi
-pydantic==2.6.1
+pydantic>=2.12.5,<3
 uvicorn
 python-multipart
 google-cloud-firestore
