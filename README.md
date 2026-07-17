@@ -39,7 +39,7 @@ For each user message, the service:
 - `main.py` — FastAPI app, middleware, auth check, `/chat` and `/chat/stream` endpoints, SSE formatting, session update flow.
 - `llm.py` — Gemini model setup, category classifier, prompt builder, streaming token generation, markdown post-processing, conversation summarization.
 - `memory.py` — Firestore-backed session storage and history trimming logic.
-- `storage.py` — GCS knowledge loader by category with in-process caching and concurrent fetch for multi-category requests.
+- `storage.py` — GCS knowledge loader by category with in-process caching and concurrent fetch for multi-category requests; article + article-index loaders with TTL caching.
 - `conversation_logger.py` — non-blocking BigQuery logging queue + background flusher.
 - `constants.py` — category taxonomy used by the classifier and knowledge lookup.
 - `requirements.txt` — Python dependencies.
@@ -62,6 +62,8 @@ Session data is keyed by `session_id` and stored in Firestore (`chats` collectio
 - `history`: list of `{role, content}` entries.
 - `summary`: compressed conversation state for long context continuity.
 - `active_categories`: cumulative category set inferred across the conversation.
+- `current_article`: slug of the article page the reader is on (replaced on navigation).
+- `related_articles`: up to 2 article slugs pulled in by the index selector.
 - `updated_at`: UTC timestamp.
 
 History is trimmed to the last **8 turns** (`MAX_TURNS`) to control prompt size.
@@ -76,6 +78,37 @@ The resulting categories are merged into the session’s existing `active_catego
 - Object path pattern: `knowledge/<Category>.txt`
 
 Loaded texts are concatenated into labeled sections (`--- Category ---`) and supplied to the answer prompt.
+
+### 3b) Article grounding
+
+Readers can chat about website articles. Two mechanisms feed article content into the prompt — neither requires the user to pick anything:
+
+1. **Current article (frontend-passed).** The chat widget sends an optional `article_slug` with each request — the slug of the article page the reader is on. The backend loads `knowledge/articles/<slug>.txt` and injects it as a labeled context section marked as "currently viewing". A new slug replaces the previous one, so navigating between articles never accumulates stale content.
+2. **Invisible index selection.** When the classifier tags the current question with the `Articles` category (e.g. "what else has Aaron written about RAG?"), a second flash-lite call reads the article catalog `knowledge/articles/index.json` (slug, title, summary per entry) and picks up to 2 relevant articles, excluding those already in context. Selected slugs persist in the session (`related_articles`, capped at 2, newest first) for follow-up questions.
+
+`Articles` is a routing-only category — it has no `knowledge/Articles.txt` file and is excluded from category knowledge loading.
+
+GCS layout:
+
+```
+knowledge/<Category>.txt          # fixed persona categories (cached for process lifetime)
+knowledge/articles/<slug>.txt     # one plain-text/markdown file per article (TTL cache)
+knowledge/articles/index.json     # article catalog used by the selector (TTL cache)
+```
+
+`index.json` format:
+
+```json
+[
+  {
+    "slug": "why-i-built-ava",
+    "title": "Why I Built Ava",
+    "summary": "One or two sentences the selector uses to judge relevance."
+  }
+]
+```
+
+Publishing a new article requires only uploading its `.txt` file and re-uploading `index.json` — no redeploy. Article slugs must match `^[A-Za-z0-9_-]{1,100}$`; invalid slugs in requests are ignored. Article text is truncated to `ARTICLE_MAX_CHARS` and both articles and the index are cached in-process for `ARTICLE_CACHE_TTL_SECONDS`.
 
 ### 4) LLM answer generation
 
@@ -123,12 +156,13 @@ Headers:
 
 - `x-internal-secret: <INTERNAL_CHAT_SECRET>`
 
-Body:
+Body (`article_slug` is optional — the slug of the article page the reader is chatting from):
 
 ```json
 {
   "session_id": "abc123",
-  "message": "Tell me about Aaron's projects"
+  "message": "Tell me about Aaron's projects",
+  "article_slug": "why-i-built-ava"
 }
 ```
 
@@ -137,7 +171,8 @@ Response:
 ```json
 {
   "answer": "...",
-  "categories": ["Project", "Skills"]
+  "categories": ["Project", "Skills"],
+  "articles": ["why-i-built-ava"]
 }
 ```
 
@@ -147,9 +182,9 @@ Headers and body are the same as `/chat`.
 
 SSE events emitted in sequence:
 
-- `metadata` → current categories
+- `metadata` → current categories + active article slugs
 - `token` → incremental answer chunks
-- `done` → final answer + categories
+- `done` → final answer + categories + active article slugs
 - `error` → error payload if generation fails
 
 ## Environment variables
@@ -168,5 +203,7 @@ SSE events emitted in sequence:
 
 ### Storage and persistence
 
-- `KNOWLEDGE_BUCKET` — GCS bucket containing `knowledge/*.txt` files.
+- `KNOWLEDGE_BUCKET` — GCS bucket containing `knowledge/*.txt` files and `knowledge/articles/`.
+- `ARTICLE_CACHE_TTL_SECONDS` (default: `600`) — in-process cache lifetime for article files and the article index.
+- `ARTICLE_MAX_CHARS` (default: `30000`) — per-article truncation limit for prompt context.
 - Google Cloud credentials/env needed for Firestore and GCS clients.

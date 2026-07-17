@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -12,6 +12,8 @@ class SessionState:
     history: list[dict[str, str]]
     summary: str
     active_categories: list[str]
+    current_article: str | None = None
+    related_articles: list[str] = field(default_factory=list)
 
 
 def _db() -> firestore.Client:
@@ -42,6 +44,8 @@ def get_session(session_id: str) -> SessionState:
         history=history,
         summary=data.get("summary", ""),
         active_categories=_normalize_categories(data),
+        current_article=data.get("current_article") or None,
+        related_articles=[str(slug) for slug in data.get("related_articles") or []],
     )
 
 
@@ -51,6 +55,8 @@ def save_session(session_id: str, session: SessionState) -> None:
             "history": session.history,
             "summary": session.summary,
             "active_categories": session.active_categories,
+            "current_article": session.current_article,
+            "related_articles": session.related_articles,
             "updated_at": datetime.utcnow(),
         }
     )
