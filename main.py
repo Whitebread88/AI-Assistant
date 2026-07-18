@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import Header, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -70,18 +71,6 @@ def _format_sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {payload}\n\n"
 
 
-def _resolve_active_categories(
-    message: str, previous: list[str]
-) -> tuple[list[str], list[str]]:
-    """Classify the current message; return (current turn's categories, merged set)."""
-    current = classify_categories(message)
-    merged = list(previous)
-    for category in current:
-        if category not in merged:
-            merged.append(category)
-    return current, merged
-
-
 def _sanitize_article_slug(slug: str | None) -> str | None:
     if not slug:
         return None
@@ -104,22 +93,32 @@ def _prepare_turn_context(
     if article_slug:
         session.current_article = article_slug
 
-    current_categories, merged = _resolve_active_categories(
-        message, session.active_categories
-    )
-    session.active_categories = merged
+    exclude_slugs = _active_articles(session)
 
-    # Invisible article selection: only when the current question is about
-    # Aaron's writing, pick additional articles from the index.
-    if ARTICLES_CATEGORY in current_categories:
-        selected = select_relevant_articles(
+    def _select_articles() -> list[str]:
+        return select_relevant_articles(
             question=message,
             index_entries=load_article_index(),
-            exclude_slugs=_active_articles(session),
+            exclude_slugs=exclude_slugs,
         )
-        if selected:
-            remaining = [s for s in session.related_articles if s not in selected]
-            session.related_articles = (selected + remaining)[:MAX_RELATED_ARTICLES]
+
+    # Category classification and article selection are independent LLM calls;
+    # run them concurrently so selecting on every message adds no latency.
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        categories_future = pool.submit(classify_categories, message)
+        selection_future = pool.submit(_select_articles)
+        current_categories = categories_future.result()
+        selected = selection_future.result()
+
+    merged = list(session.active_categories)
+    for category in current_categories:
+        if category not in merged:
+            merged.append(category)
+    session.active_categories = merged
+
+    if selected:
+        remaining = [s for s in session.related_articles if s not in selected]
+        session.related_articles = (selected + remaining)[:MAX_RELATED_ARTICLES]
 
     sections: list[str] = []
     knowledge_categories = [c for c in merged if c != ARTICLES_CATEGORY]
