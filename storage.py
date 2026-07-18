@@ -116,15 +116,18 @@ def build_article_context(current_slug: str | None, related_slugs: list[str]) ->
     if not slugs:
         return ""
 
-    titles = {entry["slug"]: entry.get("title", "") for entry in load_article_index()}
+    entries = {entry["slug"]: entry for entry in load_article_index()}
 
     sections: list[str] = []
     for slug in slugs:
         text = load_article_text(slug)
         if not text:
             continue
-        label = f"Article: {titles.get(slug) or slug}"
+        entry = entries.get(slug, {})
+        label = f"Article: {entry.get('title') or slug}"
         if slug == current_slug:
             label += " (the reader is currently viewing this article)"
-        sections.append(f"--- {label} ---\n{text}")
+        url = entry.get("url", "")
+        link_line = f"Link: {url}\n" if url else ""
+        sections.append(f"--- {label} ---\n{link_line}{text}")
     return "\n\n".join(sections)

@@ -84,9 +84,11 @@ Loaded texts are concatenated into labeled sections (`--- Category ---`) and sup
 Readers can chat about website articles. Two mechanisms feed article content into the prompt — neither requires the user to pick anything:
 
 1. **Current article (frontend-passed).** The chat widget sends an optional `article_slug` with each request — the slug of the article page the reader is on. The backend loads `knowledge/articles/<slug>.txt` and injects it as a labeled context section marked as "currently viewing". A new slug replaces the previous one, so navigating between articles never accumulates stale content.
-2. **Invisible index selection.** When the classifier tags the current question with the `Articles` category (e.g. "what else has Aaron written about RAG?"), a second flash-lite call reads the article catalog `knowledge/articles/index.json` (slug, title, summary per entry) and picks up to 2 relevant articles, excluding those already in context. Selected slugs persist in the session (`related_articles`, capped at 2, newest first) for follow-up questions.
+2. **Invisible index selection.** On every non-small-talk message, a flash-lite call reads the article catalog `knowledge/articles/index.json` (slug, title, summary, url per entry) and picks up to 2 articles relevant to the question, excluding those already in context (the selector answers "none" when nothing fits). It runs concurrently with the category classifier, so it adds no serial latency. Selected slugs persist in the session (`related_articles`, capped at 2, newest first) for follow-up questions.
 
-`Articles` is a routing-only category — it has no `knowledge/Articles.txt` file and is excluded from category knowledge loading.
+Each article's context section includes its `Link:` URL (from the index), and the answer prompt instructs the model to cite articles it draws on as markdown links and to recommend related articles from context.
+
+`Articles` remains a routing-only category in the classifier taxonomy — it has no `knowledge/Articles.txt` file and is excluded from category knowledge loading.
 
 GCS layout:
 
@@ -103,10 +105,13 @@ knowledge/articles/index.json     # article catalog used by the selector (TTL ca
   {
     "slug": "why-i-built-ava",
     "title": "Why I Built Ava",
-    "summary": "One or two sentences the selector uses to judge relevance."
+    "summary": "A dense description of what the article covers; the selector judges relevance from this text.",
+    "url": "https://www.aaronfoong.com/archive/why-i-built-ava"
   }
 ]
 ```
+
+`url` is optional; when present it is surfaced to the model as the article's `Link:` line so answers can cite the article.
 
 Publishing a new article requires only uploading its `.txt` file and re-uploading `index.json` — no redeploy. Article slugs must match `^[A-Za-z0-9_-]{1,100}$`; invalid slugs in requests are ignored. Article text is truncated to `ARTICLE_MAX_CHARS` and both articles and the index are cached in-process for `ARTICLE_CACHE_TTL_SECONDS`.
 
