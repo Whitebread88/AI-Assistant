@@ -7,9 +7,9 @@ from google.genai import types
 
 from constants import CATEGORIES
 
-ANSWER_MODEL = os.getenv("ANSWER_MODEL", "gemini-3.1-flash-lite")
-CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "gemini-3.1-flash-lite")
-SUMMARY_MODEL = os.getenv("SUMMARY_MODEL", "gemini-3.1-flash-lite")
+ANSWER_MODEL = os.getenv("ANSWER_MODEL", "gemini-3.5-flash-lite")
+CLASSIFIER_MODEL = os.getenv("CLASSIFIER_MODEL", "gemini-3.5-flash-lite")
+SUMMARY_MODEL = os.getenv("SUMMARY_MODEL", "gemini-3.5-flash-lite")
 
 # Gemini 3 models reason ("think") by default; "minimal" keeps latency and cost
 # as low as possible. Valid values: minimal, low, medium, high.
@@ -102,7 +102,7 @@ def classify_categories(question: str) -> list[str]:
     return list(_classify_categories_cached(normalized))
 
 
-MAX_SELECTED_ARTICLES = 2
+MAX_SELECTED_ARTICLES = 5
 
 
 def select_relevant_articles(
@@ -168,7 +168,7 @@ def _build_answer_prompt(
 
     return f"""
 ### SYSTEM INSTRUCTIONS
-You are a  AI Assistant representing Aaron, your creator.
+You are a AI Assistant representing Aaron, your creator.
 
 ### PERSONALITY
 Your name is Ava, inspired by the AI humanoid robot from the movie Ex Machina.
